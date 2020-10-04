@@ -116,14 +116,8 @@ app.put('/api/text-recommendations/', async (req, res) => {
                 try {
                     // string parse input for election_id
                     const election_id = election.candidates[0].name + election.district.name;
-    
+                    let candidate_profiles = [];
                     // try and get candidates' profiles from election
-                    const document = db.collection('elections').doc(election_id);
-                    let item = await document.get();
-                    let candidate_profiles =[];
-                    // if candidates' profiles from election not stored in firebase
-                    if (!item.exists){
-                        try {
                             for (candidate of election.candidates) {
                                 let candidate_content = "Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, and his entire family have been blessed to live the American Dream — the idea that anyone, through hard work and determination, can achieve anything. And he is committed to ensuring every family has that same opportunity."
                                 const candidateProfileParams = {
@@ -146,35 +140,10 @@ app.put('/api/text-recommendations/', async (req, res) => {
                                 // take average and add to candidate.profile under "average_score"
                                 candidate.profile["average_score"] = (needs_score + values_score) / 2;
                             }
-                            // create elections entry in firebase
-                            console.log("candidate_profiles", candidate_profiles);
-                            await db.collection('elections').doc('/' + election_id + '/')
-                                .create({election: candidate_profiles});
                         } catch (error) {
                             console.log(error);
                             return res.status(500).send(error);
                         } 
-                    // if candidates' profiles already stored in firebase
-                    } else {
-                        // response = {election: candidate_profiles}
-                        let response = item.data();
-                        let candidate_profiles = response.election;
-                        for (candidate_profile of candidate_profiles) {
-                            // calculate needs_score and values_score with user_profile
-                            const needs_score = calculate_similarity(user_profile.result.needs, candidate.profile.result.needs, 12);
-                            const values_score = calculate_similarity(user_profile.result.values, candidate.profile.result.values, 5);
-                            candidate_profile["needs_score"] = needs_score;
-                            candidate_profile["values_score"] = values_score;
-                            // take average and add to candidate.profile under "average_score"
-                            candidate_profile["average_score"] = (needs_score + values_score) / 2;
-                            // add profile to candidate json
-                            candidate["profile"] = candidate_profile;
-                        }
-                    }
-                } catch (error) {
-                    console.log(error);
-                    return res.status(500).send(error);
-                };
             }
             // return elections
             return res.status(200).send({elections});
