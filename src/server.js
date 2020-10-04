@@ -24,16 +24,16 @@ const axios = require('axios');
 let data = '';
 
 const config = {
-    method: 'get',
-    url: 'https://api.apify.com/v2/acts/pocesar~facebook-pages-scraper/runs/last/dataset/items?token=HPHxehsbm8m2t4iEvWpu8sFeJ\n',
-    headers: {
-        Cookie: 'AWSALB=CJFq9Ff621KPwyrNjrbVdikBoCaXzEvywP4PU+TEED2YEJEufiqiHIJAhSUBW2ms67c1AebTxKBUC07L49dZ7HKeF4wersmImyHNVpMN6MrtIYQc5iEteMxFCd1r; AWSALBCORS=CJFq9Ff621KPwyrNjrbVdikBoCaXzEvywP4PU+TEED2YEJEufiqiHIJAhSUBW2ms67c1AebTxKBUC07L49dZ7HKeF4wersmImyHNVpMN6MrtIYQc5iEteMxFCd1r',
-    },
-    data,
+  method: 'get',
+  url: 'https://api.apify.com/v2/acts/pocesar~facebook-pages-scraper/runs/last/dataset/items?token=HPHxehsbm8m2t4iEvWpu8sFeJ\n',
+  headers: {
+    Cookie: 'AWSALB=CJFq9Ff621KPwyrNjrbVdikBoCaXzEvywP4PU+TEED2YEJEufiqiHIJAhSUBW2ms67c1AebTxKBUC07L49dZ7HKeF4wersmImyHNVpMN6MrtIYQc5iEteMxFCd1r; AWSALBCORS=CJFq9Ff621KPwyrNjrbVdikBoCaXzEvywP4PU+TEED2YEJEufiqiHIJAhSUBW2ms67c1AebTxKBUC07L49dZ7HKeF4wersmImyHNVpMN6MrtIYQc5iEteMxFCd1r',
+  },
+  data,
 };
 
 admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
+  credential: admin.credential.cert(serviceAccount)
 });
 
 const db = admin.firestore();
@@ -81,115 +81,100 @@ const { IamAuthenticator } = require('ibm-watson/auth');
 const personalityInsights = new PersonalityInsightsV3({
     version: '2017-10-13',
     authenticator: new IamAuthenticator({
-        apikey: process.env.IBMKEY,
+      apikey: process.env.IBMKEY,
     }),
     serviceUrl: 'https://api.us-east.personality-insights.watson.cloud.ibm.com/instances/e243b357-33f5-45ec-a2e3-a4fdabccd55c',
-});
+  });
 
 
 function calculate_similarity(user, candidate, num) {
     let per = 0;
     for (i = 0; i < num; i++) {
-        per += Math.min(user[i].raw_score, candidate[i].raw_score) / Math.max(user[i].raw_score, candidate[i].raw_score);
+        per += Math.min(user[i].raw_score, candidate[i].raw_score)/Math.max(user[i].raw_score, candidate[i].raw_score);
     }
     return (per / num)
 }
 
-// returns election profiles if election exists, else makes and returns profiles
-// put call because need to add req.body and return
-// req.body = {elections: [candidates: [{url, name, channels=[{type(Facebook), id(url)}]}]], userText: "user_input"}
-// returns {candidates = [{profile={avg score, value score, needs score, other info from ibm}, ^^above}]
+
 app.put('/api/text-recommendations/', async (req, res) => {
 
-    // get user profile from ibm
-    const userProfileParams = {
-        // req.body.userText
-        content: "returns election profiles if election exists, else makes and returns profiles returns election profiles if election exists, else makes and returns profiles Hi y'all! I'm Catherine and I'm from the great state of Texas. When I'm not in class you'll find me carefully curating Spotify playlists, exploring the Upper Valley with friends, or finding ways to enjoy the great outdoors through different sub-clubs with the DOC. I am the Treasurer of the club lacrosse team, a tutor for the Institute for Writing and Rhetoric, and am involved with research in machine learning and computational humanities through Sophomore and Neukom scholars!",
-        contentType: 'text/plain;charset=utf-8',
-        consumptionPreferences: true,
-        rawScores: true,
-    };
-    let user_profile = {};
-    // get candidate profile from ibm
-    personalityInsights.profile(userProfileParams)
-        .then(profile => {
-            // save user profile
-            user_profile = profile;
-        })
-        .catch(err => {
-            console.log('error:', err);
-        });
-
-    // for each election in elections
-    // console.log(req.body.elections);
-    const elections = req.body.elections;
-    for (election of elections) {
-        // eslint-disable-next-line consistent-return
-        try {
-            // string parse input for election_id
-            const election_id = election.candidates[0].name + election.district.name;
-
-            // try and get candidates' profiles from election
-            const document = db.collection('elections').doc(election_id);
-            let item = await document.get();
-            let candidate_profiles = [];
-            // if candidates' profiles from election not stored in firebase
-            if (!item.exists) {
+        // get user profile from ibm
+        const userProfileParams = {
+            // req.body.userText
+            content: req.body.userText,
+            contentType: 'text/plain;charset=utf-8',
+            consumptionPreferences: true,
+            rawScores: true,
+        };
+        let user_profile = await personalityInsights.profile(userProfileParams);
+    
+        // for each election in elections
+        // console.log(req.body.elections);
+        const elections = req.body.elections;
+        for (election of elections) {
+            // eslint-disable-next-line consistent-return
                 try {
-                    for (candidate of election.candidates) {
-                        // if has a facebook url (typically stored at index 0)
-                        if (candidate.channels[0].type == "Facebook") {
-                            const fburl = candidate.channels[0].id;
-                            Apify.main(async () => {
-                                console.log('hello currently scraping');
-                                const run = await Apify.call('pocesar/facebook-pages-scraper', {
-                                    startUrls: [
-                                        {
-                                            url: fburl,
-                                        },
-                                    ],
-                                    language: 'en-US',
-                                    maxPosts: 10,
-                                    maxPostDate: '2019-01-01',
-                                    maxPostComments: 0,
-                                    maxCommentDate: '2020-01-01',
-                                    maxReviews: 0,
-                                    maxReviewDate: '2020-01-01',
-                                    proxyConfiguration: {
-                                        useApifyProxy: true,
-                                    },
-                                });
-                                console.log('scraping finished, here is the output:');
-                                console.dir(run);
-                            });
-                        }
-                        let candidate_content = "";
-                        axios(config)
-                            .then((response) => {
-                                data = JSON.stringify(response.data);
-                                const obj = JSON.parse(data)[0].posts;
-                                // console.log(obj);
-                                for (const each in obj) {
-                                    if (each) {
-                                        candidate_content += obj[each].postText;
-                                    }
-                                }
-                                console.log(candidate_content)
-                            })
-                            .catch((error) => {
-                                console.log(error);
-                            });
+                    // string parse input for election_id
+                    const election_id = election.candidates[0].name + election.district.name;
+    
+                    // try and get candidates' profiles from election
+                    const document = db.collection('elections').doc(election_id);
+                    let item = await document.get();
+                    let candidate_profiles =[];
+                    // if candidates' profiles from election not stored in firebase
+                    if (!item.exists){
+                        try {
+                            for (candidate of election.candidates) {
+                                // if has a facebook url (typically stored at index 0)
+                                // if (candidate.channels[0].type == "Facebook") {
+                                //     const fburl = candidate.channels[0].id;
+                                //         console.log('hello currently scraping');
+                                //         const run = await Apify.call('pocesar/facebook-pages-scraper', {
+                                //           startUrls: [
+                                //             {
+                                //               url: fburl,
+                                //             },
+                                //           ],
+                                //           language: 'en-US',
+                                //           maxPosts: 10,
+                                //           maxPostDate: '2019-01-01',
+                                //           maxPostComments: 0,
+                                //           maxCommentDate: '2020-01-01',
+                                //           maxReviews: 0,
+                                //           maxReviewDate: '2020-01-01',
+                                //           proxyConfiguration: {
+                                //             useApifyProxy: true,
+                                //           },
+                                //         });
+                                //         console.log('scraping finished, here is the output:');
+                                //         console.dir(run);
+                                // }
+                                // let candidate_content = "";
+                                // axios(config)
+                                //     .then((response) => {
+                                //         data = JSON.stringify(response.data);
+                                //         const obj = JSON.parse(data)[0].posts;
+                                //         // console.log(obj);
+                                //         for (const each in obj) {
+                                //             if (each) {
+                                //                 candidate_content += obj[each].postText;
+                                //             }
+                                //         }
+                                //         console.log(candidate_content)
+                                //     })
+                                //     .catch((error) => {
+                                //         console.log(error);
+                                //     });
+    
+                                let candidate_content = "Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, and his entire family have been blessed to live the American Dream — the idea that anyone, through hard work and determination, can achieve anything. And he is committed to ensuring every family has that same opportunity."
+                                const candidateProfileParams = {
+                                    content: candidate_content,
+                                    contentType: 'text/plain;charset=utf-8',
+                                    consumptionPreferences: true,
+                                    rawScores: true,
+                                };
 
-                        // let candidate_content = "Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, and his entire family have been blessed to live the American Dream — the idea that anyone, through hard work and determination, can achieve anything. And he is committed to ensuring every family has that same opportunity."
-                        const candidateProfileParams = {
-                            content: candidate_content,
-                            contentType: 'text/plain;charset=utf-8',
-                            consumptionPreferences: true,
-                            rawScores: true,
-                        };
-                        // get candidate profile from ibm
-                        personalityInsights.profile(candidateProfileParams)
-                            .then(profile => {
+                                profile = await personalityInsights.profile(candidateProfileParams);
                                 // add profile to candidate json
                                 candidate["profile"] = profile;
                                 // add profile to candidate profiles for store in firebase
@@ -201,192 +186,156 @@ app.put('/api/text-recommendations/', async (req, res) => {
                                 candidate.profile["values_score"] = values_score;
                                 // take average and add to candidate.profile under "average_score"
                                 candidate.profile["average_score"] = (needs_score + values_score) / 2;
-                            })
-                            .catch(err => {
-                                console.log('error:', err);
-                            });
-                        // }
-                        // // if candidate does not have a url
-                        // else {
-                        //     const profile = {
-                        //         needs_score: 0,
-                        //         values_score: 0,
-                        //         average_score: 0,
-                        //     };
-                        //     candidate["profile"] = profile;
-                        // }
+                            }
+                            // create elections entry in firebase
+                            console.log("candidate_profiles", candidate_profiles);
+                            await db.collection('elections').doc('/' + election_id + '/')
+                                .create({election: candidate_profiles});
+                        } catch (error) {
+                            console.log(error);
+                            return res.status(500).send(error);
+                        } 
+                    // if candidates' profiles already stored in firebase
+                    } else {
+                        // response = {election: candidate_profiles}
+                        let response = item.data();
+                        let candidate_profiles = response.election;
+                        for (candidate_profile of candidate_profiles) {
+                            // calculate needs_score and values_score with user_profile
+                            const needs_score = calculate_similarity(user_profile.result.needs, candidate.profile.result.needs, 12);
+                            const values_score = calculate_similarity(user_profile.result.values, candidate.profile.result.values, 5);
+                            candidate_profile["needs_score"] = needs_score;
+                            candidate_profile["values_score"] = values_score;
+                            // take average and add to candidate.profile under "average_score"
+                            candidate_profile["average_score"] = (needs_score + values_score) / 2;
+                            // add profile to candidate json
+                            candidate["profile"] = candidate_profile;
+                        }
                     }
-                    console.log(candidate_profiles);
-                    // create elections entry in firebase
-                    console.log("candidate_profiles", candidate_profiles);
-                    await db.collection('elections').doc('/' + election_id + '/')
-                        .create({ election: candidate_profiles });
                 } catch (error) {
                     console.log(error);
                     return res.status(500).send(error);
-                }
-                // if candidates' profiles already stored in firebase
-            } else {
-                // response = {election: candidate_profiles}
-                let response = item.data();
-                let candidate_profiles = response.election;
-                for (candidate_profile of candidate_profiles) {
-                    // calculate needs_score and values_score with user_profile
-                    const needs_score = calculate_similarity(user_profile.result.needs, candidate.profile.result.needs, 12);
-                    const values_score = calculate_similarity(user_profile.result.values, candidate.profile.result.values, 5);
-                    candidate_profile["needs_score"] = needs_score;
-                    candidate_profile["values_score"] = values_score;
-                    // take average and add to candidate.profile under "average_score"
-                    candidate_profile["average_score"] = (needs_score + values_score) / 2;
-                    // add profile to candidate json
-                    candidate["profile"] = candidate_profile;
-                }
+                };
             }
-        } catch (error) {
-            console.log(error);
-            return res.status(500).send(error);
-        };
-    }
-    // return elections
-    return res.status(200).send({ elections });
-});
+            // return elections
+            return res.status(200).send({elections});
+        });
 
-app.put('/api/slide-recommendations/', async (req, res) => {
-
-    // for each election in elections
-    // console.log(req.body.elections);
-    const elections = req.body.elections;
-    for (election of elections) {
-        // eslint-disable-next-line consistent-return
-        try {
-            // string parse input for election_id
-            const election_id = election.candidates[0].name + election.district.name;
-
-            // try and get candidates' profiles from election
-            const document = db.collection('elections').doc(election_id);
-            let item = await document.get();
-            let candidate_profiles = [];
-
-            // if candidates' profiles from election not stored in firebase
-            if (!item.exists) {
-                try {
-                    for (candidate of election.candidates) {
-                        // if has a facebook url (typically stored at index 0)
-                        if (candidate.channels[0].type == "Facebook") {
-                            const fburl = candidate.channels[0].id;
-                            Apify.main(async () => {
-                                console.log('hello currently scraping');
-                                const run = await Apify.call('pocesar/facebook-pages-scraper', {
-                                    startUrls: [
-                                        {
-                                            url: fburl,
-                                        },
-                                    ],
-                                    language: 'en-US',
-                                    maxPosts: 10,
-                                    maxPostDate: '2019-01-01',
-                                    maxPostComments: 0,
-                                    maxCommentDate: '2020-01-01',
-                                    maxReviews: 0,
-                                    maxReviewDate: '2020-01-01',
-                                    proxyConfiguration: {
-                                        useApifyProxy: true,
-                                    },
-                                });
-                                console.log('scraping finished, here is the output:');
-                                console.dir(run);
-                            });
-                        }
-                        let candidate_content = "";
-                        axios(config)
-                            .then((response) => {
-                                data = JSON.stringify(response.data);
-                                const obj = JSON.parse(data)[0].posts;
-                                // console.log(obj);
-                                for (const each in obj) {
-                                    if (each) {
-                                        candidate_content += obj[each].postText;
-                                    }
+        app.put('/api/slide-recommendations/', async (req, res) => {
+        
+            // for each election in elections
+            // console.log(req.body.elections);
+            const elections = req.body.elections;
+            for (election of elections) {
+                // eslint-disable-next-line consistent-return
+                    try {
+                        // string parse input for election_id
+                        const election_id = election.candidates[0].name + election.district.name;
+        
+                        // try and get candidates' profiles from election
+                        const document = db.collection('elections').doc(election_id);
+                        let item = await document.get();
+                        let candidate_profiles =[];
+                        // if candidates' profiles from election not stored in firebase
+                        if (!item.exists){
+                            try {
+                                for (candidate of election.candidates) {
+                                    // if has a facebook url (typically stored at index 0)
+                                    // if (candidate.channels[0].type == "Facebook") {
+                                    //     const fburl = candidate.channels[0].id;
+                                    //         console.log('hello currently scraping');
+                                    //         const run = await Apify.call('pocesar/facebook-pages-scraper', {
+                                    //           startUrls: [
+                                    //             {
+                                    //               url: fburl,
+                                    //             },
+                                    //           ],
+                                    //           language: 'en-US',
+                                    //           maxPosts: 10,
+                                    //           maxPostDate: '2019-01-01',
+                                    //           maxPostComments: 0,
+                                    //           maxCommentDate: '2020-01-01',
+                                    //           maxReviews: 0,
+                                    //           maxReviewDate: '2020-01-01',
+                                    //           proxyConfiguration: {
+                                    //             useApifyProxy: true,
+                                    //           },
+                                    //         });
+                                    //         console.log('scraping finished, here is the output:');
+                                    //         console.dir(run);
+                                    // }
+                                    // let candidate_content = "";
+                                    // axios(config)
+                                    //     .then((response) => {
+                                    //         data = JSON.stringify(response.data);
+                                    //         const obj = JSON.parse(data)[0].posts;
+                                    //         // console.log(obj);
+                                    //         for (const each in obj) {
+                                    //             if (each) {
+                                    //                 candidate_content += obj[each].postText;
+                                    //             }
+                                    //         }
+                                    //         console.log(candidate_content)
+                                    //     })
+                                    //     .catch((error) => {
+                                    //         console.log(error);
+                                    //     });
+        
+                                    let candidate_content = "Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, and his entire family have been blessed to live the American Dream — the idea that anyone, through hard work and determination, can achieve anything. And he is committed to ensuring every family has that same opportunity."
+                                    const candidateProfileParams = {
+                                        content: candidate_content,
+                                        contentType: 'text/plain;charset=utf-8',
+                                        consumptionPreferences: true,
+                                        rawScores: true,
+                                    };
+    
+                                    profile = await personalityInsights.profile(candidateProfileParams);
+                                    // add profile to candidate json
+                                    candidate["profile"] = profile;
+                                    // add profile to candidate profiles for store in firebase
+                                    candidate_profiles.push(profile);
+                                    // calculate needs_score and values_score with user_profile
+                                    const needs_score = calculate_similarity(user_profile.result.needs, candidate.profile.result.needs, 12);
+                                    const values_score = calculate_similarity(user_profile.result.values, candidate.profile.result.values, 5);
+                                    candidate.profile["needs_score"] = needs_score;
+                                    candidate.profile["values_score"] = values_score;
+                                    // take average and add to candidate.profile under "average_score"
+                                    candidate.profile["average_score"] = (needs_score + values_score) / 2;
                                 }
-                                console.log(candidate_content)
-                            })
-                            .catch((error) => {
+                                // create elections entry in firebase
+                                console.log("candidate_profiles", candidate_profiles);
+                                await db.collection('elections').doc('/' + election_id + '/')
+                                    .create({election: candidate_profiles});
+                            } catch (error) {
                                 console.log(error);
-                            });
-
-                        // let candidate_content = "Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, and his entire family have been blessed to live the American Dream — the idea that anyone, through hard work and determination, can achieve anything. And he is committed to ensuring every family has that same opportunity."
-                        const candidateProfileParams = {
-                            content: candidate_content,
-                            contentType: 'text/plain;charset=utf-8',
-                            consumptionPreferences: true,
-                            rawScores: true,
-                        };
-                        // get candidate profile from ibm
-                        personalityInsights.profile(candidateProfileParams)
-                            .then(profile => {
-                                // add profile to candidate json
-                                candidate["profile"] = profile;
-                                // add profile to candidate profiles for store in firebase
-                                candidate_profiles.push(profile);
-                                const user_profile = req.body.user;
+                                return res.status(500).send(error);
+                            } 
+                        // if candidates' profiles already stored in firebase
+                        } else {
+                            // response = {election: candidate_profiles}
+                            let response = item.data();
+                            let candidate_profiles = response.election;
+                            let user_profile = req.body.user;
+                            for (candidate_profile of candidate_profiles) {
                                 // calculate needs_score and values_score with user_profile
                                 const needs_score = calculate_similarity(user_profile.needs, candidate.profile.result.needs, 12);
                                 const values_score = calculate_similarity(user_profile.values, candidate.profile.result.values, 5);
-                                candidate.profile["needs_score"] = needs_score;
-                                candidate.profile["values_score"] = values_score;
+                                candidate_profile["needs_score"] = needs_score;
+                                candidate_profile["values_score"] = values_score;
                                 // take average and add to candidate.profile under "average_score"
-                                candidate.profile["average_score"] = (needs_score + values_score) / 2;
-                                console.log(candidate.profile);
-                            })
-                            .catch(err => {
-                                console.log('error:', err);
-                            });
-                        // }
-                        // // if candidate does not have a url
-                        // else {
-                        //     const profile = {
-                        //         needs_score: 0,
-                        //         values_score: 0,
-                        //         average_score: 0,
-                        //     };
-                        //     candidate["profile"] = profile;
-                        // }
-                    }
-                    // create elections entry in firebase
-                    console.log("candidate_profiles", candidate_profiles);
-                    await db.collection('elections').doc('/' + election_id + '/')
-                        .create({ election: candidate_profiles });
-                } catch (error) {
-                    console.log(error);
-                    return res.status(500).send(error);
+                                candidate_profile["average_score"] = (needs_score + values_score) / 2;
+                                // add profile to candidate json
+                                candidate["profile"] = candidate_profile;
+                            }
+                        }
+                    } catch (error) {
+                        console.log(error);
+                        return res.status(500).send(error);
+                    };
                 }
-                // if candidates' profiles already stored in firebase
-            } else {
-                // response = {election: candidate_profiles}
-                let response = item.data();
-                let candidate_profiles = response.election;
-                for (candidate_profile of candidate_profiles) {
-                    // calculate needs_score and values_score with user_profile
-                    const needs_score = calculate_similarity(user_profile.needs, candidate.profile.result.needs, 12);
-                    const values_score = calculate_similarity(user_profile.values, candidate.profile.result.values, 5);
-                    candidate_profile["needs_score"] = needs_score;
-                    candidate_profile["values_score"] = values_score;
-                    // take average and add to candidate.profile under "average_score"
-                    candidate_profile["average_score"] = (needs_score + values_score) / 2;
-                    // add profile to candidate json
-                    candidate["profile"] = candidate_profile;
-                    console.log(candidate);
-                }
-            }
-        } catch (error) {
-            console.log(error);
-            return res.status(500).send(error);
-        };
-    }
-    // return elections
-    console.log({ elections });
-    return res.status(200).send({ elections });
-});
+                // return elections
+                return res.status(200).send({elections});
+            });
 
 
 // START THE SERVER
