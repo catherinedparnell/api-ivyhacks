@@ -1,4 +1,3 @@
-
 // import apiRouter from './router';
 const express = require('express');
 const cors = require('cors');
@@ -15,6 +14,23 @@ const app = express();
 const admin = require('firebase-admin');
 
 const serviceAccount = require('../permissions.json');
+
+const Apify = require('apify');
+
+Apify.client.setOptions({ token: 'HPHxehsbm8m2t4iEvWpu8sFeJ' });
+
+const axios = require('axios');
+
+let data = '';
+
+const config = {
+    method: 'get',
+    url: 'https://api.apify.com/v2/acts/pocesar~facebook-pages-scraper/runs/last/dataset/items?token=HPHxehsbm8m2t4iEvWpu8sFeJ\n',
+    headers: {
+        Cookie: 'AWSALB=CJFq9Ff621KPwyrNjrbVdikBoCaXzEvywP4PU+TEED2YEJEufiqiHIJAhSUBW2ms67c1AebTxKBUC07L49dZ7HKeF4wersmImyHNVpMN6MrtIYQc5iEteMxFCd1r; AWSALBCORS=CJFq9Ff621KPwyrNjrbVdikBoCaXzEvywP4PU+TEED2YEJEufiqiHIJAhSUBW2ms67c1AebTxKBUC07L49dZ7HKeF4wersmImyHNVpMN6MrtIYQc5iEteMxFCd1r',
+    },
+    data,
+};
 
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount)
@@ -117,14 +133,54 @@ app.put('/api/text-recommendations/', async (req, res) => {
             const document = db.collection('elections').doc(election_id);
             let item = await document.get();
             let candidate_profiles = [];
-
             // if candidates' profiles from election not stored in firebase
             if (!item.exists) {
                 try {
                     for (candidate of election.candidates) {
-                        // if has a url
-                        // if (candidate.candidateUrl.exists) {
-                        let candidate_content = "Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, and his entire family have been blessed to live the American Dream — the idea that anyone, through hard work and determination, can achieve anything. And he is committed to ensuring every family has that same opportunity."
+                        // if has a facebook url (typically stored at index 0)
+                        if (candidate.channels[0].type == "Facebook") {
+                            const fburl = candidate.channels[0].id;
+                            Apify.main(async () => {
+                                console.log('hello currently scraping');
+                                const run = await Apify.call('pocesar/facebook-pages-scraper', {
+                                    startUrls: [
+                                        {
+                                            url: fburl,
+                                        },
+                                    ],
+                                    language: 'en-US',
+                                    maxPosts: 10,
+                                    maxPostDate: '2019-01-01',
+                                    maxPostComments: 0,
+                                    maxCommentDate: '2020-01-01',
+                                    maxReviews: 0,
+                                    maxReviewDate: '2020-01-01',
+                                    proxyConfiguration: {
+                                        useApifyProxy: true,
+                                    },
+                                });
+                                console.log('scraping finished, here is the output:');
+                                console.dir(run);
+                            });
+                        }
+                        let candidate_content = "";
+                        axios(config)
+                            .then((response) => {
+                                data = JSON.stringify(response.data);
+                                const obj = JSON.parse(data)[0].posts;
+                                // console.log(obj);
+                                for (const each in obj) {
+                                    if (each) {
+                                        candidate_content += obj[each].postText;
+                                    }
+                                }
+                                console.log(candidate_content)
+                            })
+                            .catch((error) => {
+                                console.log(error);
+                            });
+
+                        // let candidate_content = "Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, and his entire family have been blessed to live the American Dream — the idea that anyone, through hard work and determination, can achieve anything. And he is committed to ensuring every family has that same opportunity."
                         const candidateProfileParams = {
                             content: candidate_content,
                             contentType: 'text/plain;charset=utf-8',
@@ -191,7 +247,6 @@ app.put('/api/text-recommendations/', async (req, res) => {
         };
     }
     // return elections
-    console.log(elections);
     return res.status(200).send({ elections });
 });
 
@@ -215,9 +270,50 @@ app.put('/api/slide-recommendations/', async (req, res) => {
             if (!item.exists) {
                 try {
                     for (candidate of election.candidates) {
-                        // if has a url
-                        // if (candidate.candidateUrl.exists) {
-                        let candidate_content = "Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, and his entire family have been blessed to live the American Dream — the idea that anyone, through hard work and determination, can achieve anything. And he is committed to ensuring every family has that same opportunity."
+                        // if has a facebook url (typically stored at index 0)
+                        if (candidate.channels[0].type == "Facebook") {
+                            const fburl = candidate.channels[0].id;
+                            Apify.main(async () => {
+                                console.log('hello currently scraping');
+                                const run = await Apify.call('pocesar/facebook-pages-scraper', {
+                                    startUrls: [
+                                        {
+                                            url: fburl,
+                                        },
+                                    ],
+                                    language: 'en-US',
+                                    maxPosts: 10,
+                                    maxPostDate: '2019-01-01',
+                                    maxPostComments: 0,
+                                    maxCommentDate: '2020-01-01',
+                                    maxReviews: 0,
+                                    maxReviewDate: '2020-01-01',
+                                    proxyConfiguration: {
+                                        useApifyProxy: true,
+                                    },
+                                });
+                                console.log('scraping finished, here is the output:');
+                                console.dir(run);
+                            });
+                        }
+                        let candidate_content = "";
+                        axios(config)
+                            .then((response) => {
+                                data = JSON.stringify(response.data);
+                                const obj = JSON.parse(data)[0].posts;
+                                // console.log(obj);
+                                for (const each in obj) {
+                                    if (each) {
+                                        candidate_content += obj[each].postText;
+                                    }
+                                }
+                                console.log(candidate_content)
+                            })
+                            .catch((error) => {
+                                console.log(error);
+                            });
+
+                        // let candidate_content = "Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, and his entire family have been blessed to live the American Dream — the idea that anyone, through hard work and determination, can achieve anything. And he is committed to ensuring every family has that same opportunity."
                         const candidateProfileParams = {
                             content: candidate_content,
                             contentType: 'text/plain;charset=utf-8',
@@ -227,7 +323,6 @@ app.put('/api/slide-recommendations/', async (req, res) => {
                         // get candidate profile from ibm
                         personalityInsights.profile(candidateProfileParams)
                             .then(profile => {
-                                console.log(profile);
                                 // add profile to candidate json
                                 candidate["profile"] = profile;
                                 // add profile to candidate profiles for store in firebase
@@ -286,7 +381,6 @@ app.put('/api/slide-recommendations/', async (req, res) => {
         };
     }
     // return elections
-    console.log(elections);
     return res.status(200).send({ elections });
 });
 
