@@ -125,47 +125,6 @@ app.put('/api/text-recommendations/', async (req, res) => {
                     if (!item.exists){
                         try {
                             for (candidate of election.candidates) {
-                                // if has a facebook url (typically stored at index 0)
-                                // if (candidate.channels[0].type == "Facebook") {
-                                //     const fburl = candidate.channels[0].id;
-                                //         console.log('hello currently scraping');
-                                //         const run = await Apify.call('pocesar/facebook-pages-scraper', {
-                                //           startUrls: [
-                                //             {
-                                //               url: fburl,
-                                //             },
-                                //           ],
-                                //           language: 'en-US',
-                                //           maxPosts: 10,
-                                //           maxPostDate: '2019-01-01',
-                                //           maxPostComments: 0,
-                                //           maxCommentDate: '2020-01-01',
-                                //           maxReviews: 0,
-                                //           maxReviewDate: '2020-01-01',
-                                //           proxyConfiguration: {
-                                //             useApifyProxy: true,
-                                //           },
-                                //         });
-                                //         console.log('scraping finished, here is the output:');
-                                //         console.dir(run);
-                                // }
-                                // let candidate_content = "";
-                                // axios(config)
-                                //     .then((response) => {
-                                //         data = JSON.stringify(response.data);
-                                //         const obj = JSON.parse(data)[0].posts;
-                                //         // console.log(obj);
-                                //         for (const each in obj) {
-                                //             if (each) {
-                                //                 candidate_content += obj[each].postText;
-                                //             }
-                                //         }
-                                //         console.log(candidate_content)
-                                //     })
-                                //     .catch((error) => {
-                                //         console.log(error);
-                                //     });
-    
                                 let candidate_content = "Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, and his entire family have been blessed to live the American Dream — the idea that anyone, through hard work and determination, can achieve anything. And he is committed to ensuring every family has that same opportunity."
                                 const candidateProfileParams = {
                                     content: candidate_content,
@@ -222,7 +181,7 @@ app.put('/api/text-recommendations/', async (req, res) => {
         });
 
         app.put('/api/slide-recommendations/', async (req, res) => {
-        
+            const user_profile = req.body.user;
             // for each election in elections
             // console.log(req.body.elections);
             const elections = req.body.elections;
@@ -240,47 +199,6 @@ app.put('/api/text-recommendations/', async (req, res) => {
                         if (!item.exists){
                             try {
                                 for (candidate of election.candidates) {
-                                    // if has a facebook url (typically stored at index 0)
-                                    // if (candidate.channels[0].type == "Facebook") {
-                                    //     const fburl = candidate.channels[0].id;
-                                    //         console.log('hello currently scraping');
-                                    //         const run = await Apify.call('pocesar/facebook-pages-scraper', {
-                                    //           startUrls: [
-                                    //             {
-                                    //               url: fburl,
-                                    //             },
-                                    //           ],
-                                    //           language: 'en-US',
-                                    //           maxPosts: 10,
-                                    //           maxPostDate: '2019-01-01',
-                                    //           maxPostComments: 0,
-                                    //           maxCommentDate: '2020-01-01',
-                                    //           maxReviews: 0,
-                                    //           maxReviewDate: '2020-01-01',
-                                    //           proxyConfiguration: {
-                                    //             useApifyProxy: true,
-                                    //           },
-                                    //         });
-                                    //         console.log('scraping finished, here is the output:');
-                                    //         console.dir(run);
-                                    // }
-                                    // let candidate_content = "";
-                                    // axios(config)
-                                    //     .then((response) => {
-                                    //         data = JSON.stringify(response.data);
-                                    //         const obj = JSON.parse(data)[0].posts;
-                                    //         // console.log(obj);
-                                    //         for (const each in obj) {
-                                    //             if (each) {
-                                    //                 candidate_content += obj[each].postText;
-                                    //             }
-                                    //         }
-                                    //         console.log(candidate_content)
-                                    //     })
-                                    //     .catch((error) => {
-                                    //         console.log(error);
-                                    //     });
-        
                                     let candidate_content = "Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, and his entire family have been blessed to live the American Dream — the idea that anyone, through hard work and determination, can achieve anything. And he is committed to ensuring every family has that same opportunity."
                                     const candidateProfileParams = {
                                         content: candidate_content,
@@ -295,8 +213,8 @@ app.put('/api/text-recommendations/', async (req, res) => {
                                     // add profile to candidate profiles for store in firebase
                                     candidate_profiles.push(profile);
                                     // calculate needs_score and values_score with user_profile
-                                    const needs_score = calculate_similarity(user_profile.result.needs, candidate.profile.result.needs, 12);
-                                    const values_score = calculate_similarity(user_profile.result.values, candidate.profile.result.values, 5);
+                                    const needs_score = calculate_similarity(user_profile.needs, candidate.profile.result.needs, 12);
+                                    const values_score = calculate_similarity(user_profile.values, candidate.profile.result.values, 5);
                                     candidate.profile["needs_score"] = needs_score;
                                     candidate.profile["values_score"] = values_score;
                                     // take average and add to candidate.profile under "average_score"
@@ -315,7 +233,6 @@ app.put('/api/text-recommendations/', async (req, res) => {
                             // response = {election: candidate_profiles}
                             let response = item.data();
                             let candidate_profiles = response.election;
-                            let user_profile = req.body.user;
                             for (candidate_profile of candidate_profiles) {
                                 // calculate needs_score and values_score with user_profile
                                 const needs_score = calculate_similarity(user_profile.needs, candidate.profile.result.needs, 12);
