@@ -17,7 +17,7 @@ const admin = require('firebase-admin');
 const serviceAccount = require('../permissions.json');
 
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
+    credential: admin.credential.cert(serviceAccount)
 });
 
 const db = admin.firestore();
@@ -65,16 +65,16 @@ const { IamAuthenticator } = require('ibm-watson/auth');
 const personalityInsights = new PersonalityInsightsV3({
     version: '2017-10-13',
     authenticator: new IamAuthenticator({
-      apikey: process.env.IBMKEY,
+        apikey: process.env.IBMKEY,
     }),
     serviceUrl: 'https://api.us-east.personality-insights.watson.cloud.ibm.com/instances/e243b357-33f5-45ec-a2e3-a4fdabccd55c',
-  });
+});
 
 
 function calculate_similarity(user, candidate, num) {
     let per = 0;
     for (i = 0; i < num; i++) {
-        per += Math.min(user[i].raw_score, candidate[i].raw_score)/Math.max(user[i].raw_score, candidate[i].raw_score);
+        per += Math.min(user[i].raw_score, candidate[i].raw_score) / Math.max(user[i].raw_score, candidate[i].raw_score);
     }
     return (per / num)
 }
@@ -97,11 +97,11 @@ app.put('/api/text-recommendations/', async (req, res) => {
     // get candidate profile from ibm
     personalityInsights.profile(userProfileParams)
         .then(profile => {
-        // save user profile
-        user_profile = profile;
+            // save user profile
+            user_profile = profile;
         })
         .catch(err => {
-        console.log('error:', err);
+            console.log('error:', err);
         });
 
     // for each election in elections
@@ -109,183 +109,186 @@ app.put('/api/text-recommendations/', async (req, res) => {
     const elections = req.body.elections;
     for (election of elections) {
         // eslint-disable-next-line consistent-return
-            try {
-                // string parse input for election_id
-                const election_id = election.candidates[0].name + election.district.name;
+        try {
+            // string parse input for election_id
+            const election_id = election.candidates[0].name + election.district.name;
 
-                // try and get candidates' profiles from election
-                const document = db.collection('elections').doc(election_id);
-                let item = await document.get();
-                let candidate_profiles =[];
+            // try and get candidates' profiles from election
+            const document = db.collection('elections').doc(election_id);
+            let item = await document.get();
+            let candidate_profiles = [];
 
-                // if candidates' profiles from election not stored in firebase
-                if (!item.exists){
-                    try {
-                        for (candidate of election.candidates) {
-                            // if has a url
-                            // if (candidate.candidateUrl.exists) {
-                                let candidate_content = "Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, and his entire family have been blessed to live the American Dream — the idea that anyone, through hard work and determination, can achieve anything. And he is committed to ensuring every family has that same opportunity."
-                                const candidateProfileParams = {
-                                    content: candidate_content,
-                                    contentType: 'text/plain;charset=utf-8',
-                                    consumptionPreferences: true,
-                                    rawScores: true,
-                                };
-                                // get candidate profile from ibm
-                                personalityInsights.profile(candidateProfileParams)
-                                    .then(profile => {
-                                    // add profile to candidate json
-                                    candidate["profile"] = profile;
-                                    // add profile to candidate profiles for store in firebase
-                                    candidate_profiles.push(profile);
-                                    // calculate needs_score and values_score with user_profile
-                                    const needs_score = calculate_similarity(user_profile.result.needs, candidate.profile.result.needs, 12);
-                                    const values_score = calculate_similarity(user_profile.result.values, candidate.profile.result.values, 5);
-                                    candidate.profile["needs_score"] = needs_score;
-                                    candidate.profile["values_score"] = values_score;
-                                    // take average and add to candidate.profile under "average_score"
-                                    candidate.profile["average_score"] = (needs_score + values_score) / 2;
-                                    })
-                                    .catch(err => {
-                                    console.log('error:', err);
-                                    });
-                            // }
-                            // // if candidate does not have a url
-                            // else {
-                            //     const profile = {
-                            //         needs_score: 0,
-                            //         values_score: 0,
-                            //         average_score: 0,
-                            //     };
-                            //     candidate["profile"] = profile;
-                            // }
-                        }
-                        // create elections entry in firebase
-                        console.log("candidate_profiles", candidate_profiles);
-                        await db.collection('elections').doc('/' + election_id + '/')
-                            .create({election: candidate_profiles});
-                    } catch (error) {
-                        console.log(error);
-                        return res.status(500).send(error);
-                    } 
-                // if candidates' profiles already stored in firebase
-                } else {
-                    // response = {election: candidate_profiles}
-                    let response = item.data();
-                    let candidate_profiles = response.election;
-                    for (candidate_profile of candidate_profiles) {
-                        // calculate needs_score and values_score with user_profile
-                        const needs_score = calculate_similarity(user_profile.result.needs, candidate.profile.result.needs, 12);
-                        const values_score = calculate_similarity(user_profile.result.values, candidate.profile.result.values, 5);
-                        candidate_profile["needs_score"] = needs_score;
-                        candidate_profile["values_score"] = values_score;
-                        // take average and add to candidate.profile under "average_score"
-                        candidate_profile["average_score"] = (needs_score + values_score) / 2;
-                        // add profile to candidate json
-                        candidate["profile"] = candidate_profile;
-                    }
-                }
-            } catch (error) {
-                console.log(error);
-                return res.status(500).send(error);
-            };
-        }
-        // return elections
-        return res.status(200).send({elections});
-    });
-
-app.put('/api/slide-recommendations/', async (req, res) => {
-
-        // for each election in elections
-        // console.log(req.body.elections);
-        const elections = req.body.elections;
-        for (election of elections) {
-            // eslint-disable-next-line consistent-return
+            // if candidates' profiles from election not stored in firebase
+            if (!item.exists) {
                 try {
-                    // string parse input for election_id
-                    const election_id = election.candidates[0].name + election.district.name;
-    
-                    // try and get candidates' profiles from election
-                    const document = db.collection('elections').doc(election_id);
-                    let item = await document.get();
-                    let candidate_profiles =[];
-    
-                    // if candidates' profiles from election not stored in firebase
-                    if (!item.exists){
-                        try {
-                            for (candidate of election.candidates) {
-                                // if has a url
-                                // if (candidate.candidateUrl.exists) {
-                                    let candidate_content = "Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, and his entire family have been blessed to live the American Dream — the idea that anyone, through hard work and determination, can achieve anything. And he is committed to ensuring every family has that same opportunity."
-                                    const candidateProfileParams = {
-                                        content: candidate_content,
-                                        contentType: 'text/plain;charset=utf-8',
-                                        consumptionPreferences: true,
-                                        rawScores: true,
-                                    };
-                                    // get candidate profile from ibm
-                                    personalityInsights.profile(candidateProfileParams)
-                                        .then(profile => {
-                                        // add profile to candidate json
-                                        candidate["profile"] = profile;
-                                        // add profile to candidate profiles for store in firebase
-                                        candidate_profiles.push(profile);
-                                        const user_profile = req.body.user;
-                                        // calculate needs_score and values_score with user_profile
-                                        const needs_score = calculate_similarity(user_profile.needs, candidate.profile.result.needs, 12);
-                                        const values_score = calculate_similarity(user_profile.values, candidate.profile.result.values, 5);
-                                        candidate.profile["needs_score"] = needs_score;
-                                        candidate.profile["values_score"] = values_score;
-                                        // take average and add to candidate.profile under "average_score"
-                                        candidate.profile["average_score"] = (needs_score + values_score) / 2;
-                                        })
-                                        .catch(err => {
-                                        console.log('error:', err);
-                                        });
-                                // }
-                                // // if candidate does not have a url
-                                // else {
-                                //     const profile = {
-                                //         needs_score: 0,
-                                //         values_score: 0,
-                                //         average_score: 0,
-                                //     };
-                                //     candidate["profile"] = profile;
-                                // }
-                            }
-                            // create elections entry in firebase
-                            console.log("candidate_profiles", candidate_profiles);
-                            await db.collection('elections').doc('/' + election_id + '/')
-                                .create({election: candidate_profiles});
-                        } catch (error) {
-                            console.log(error);
-                            return res.status(500).send(error);
-                        } 
-                    // if candidates' profiles already stored in firebase
-                    } else {
-                        // response = {election: candidate_profiles}
-                        let response = item.data();
-                        let candidate_profiles = response.election;
-                        for (candidate_profile of candidate_profiles) {
-                            // calculate needs_score and values_score with user_profile
-                            const needs_score = calculate_similarity(user_profile.needs, candidate.profile.result.needs, 12);
-                            const values_score = calculate_similarity(user_profile.values, candidate.profile.result.values, 5);
-                            candidate_profile["needs_score"] = needs_score;
-                            candidate_profile["values_score"] = values_score;
-                            // take average and add to candidate.profile under "average_score"
-                            candidate_profile["average_score"] = (needs_score + values_score) / 2;
-                            // add profile to candidate json
-                            candidate["profile"] = candidate_profile;
-                        }
+                    for (candidate of election.candidates) {
+                        // if has a url
+                        // if (candidate.candidateUrl.exists) {
+                        let candidate_content = "Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, and his entire family have been blessed to live the American Dream — the idea that anyone, through hard work and determination, can achieve anything. And he is committed to ensuring every family has that same opportunity."
+                        const candidateProfileParams = {
+                            content: candidate_content,
+                            contentType: 'text/plain;charset=utf-8',
+                            consumptionPreferences: true,
+                            rawScores: true,
+                        };
+                        // get candidate profile from ibm
+                        personalityInsights.profile(candidateProfileParams)
+                            .then(profile => {
+                                // add profile to candidate json
+                                candidate["profile"] = profile;
+                                // add profile to candidate profiles for store in firebase
+                                candidate_profiles.push(profile);
+                                // calculate needs_score and values_score with user_profile
+                                const needs_score = calculate_similarity(user_profile.result.needs, candidate.profile.result.needs, 12);
+                                const values_score = calculate_similarity(user_profile.result.values, candidate.profile.result.values, 5);
+                                candidate.profile["needs_score"] = needs_score;
+                                candidate.profile["values_score"] = values_score;
+                                // take average and add to candidate.profile under "average_score"
+                                candidate.profile["average_score"] = (needs_score + values_score) / 2;
+                            })
+                            .catch(err => {
+                                console.log('error:', err);
+                            });
+                        // }
+                        // // if candidate does not have a url
+                        // else {
+                        //     const profile = {
+                        //         needs_score: 0,
+                        //         values_score: 0,
+                        //         average_score: 0,
+                        //     };
+                        //     candidate["profile"] = profile;
+                        // }
                     }
+                    // create elections entry in firebase
+                    console.log("candidate_profiles", candidate_profiles);
+                    await db.collection('elections').doc('/' + election_id + '/')
+                        .create({ election: candidate_profiles });
                 } catch (error) {
                     console.log(error);
                     return res.status(500).send(error);
-                };
+                }
+                // if candidates' profiles already stored in firebase
+            } else {
+                // response = {election: candidate_profiles}
+                let response = item.data();
+                let candidate_profiles = response.election;
+                for (candidate_profile of candidate_profiles) {
+                    // calculate needs_score and values_score with user_profile
+                    const needs_score = calculate_similarity(user_profile.result.needs, candidate.profile.result.needs, 12);
+                    const values_score = calculate_similarity(user_profile.result.values, candidate.profile.result.values, 5);
+                    candidate_profile["needs_score"] = needs_score;
+                    candidate_profile["values_score"] = values_score;
+                    // take average and add to candidate.profile under "average_score"
+                    candidate_profile["average_score"] = (needs_score + values_score) / 2;
+                    // add profile to candidate json
+                    candidate["profile"] = candidate_profile;
+                }
             }
-            // return elections
-            return res.status(200).send({elections});
-        });
+        } catch (error) {
+            console.log(error);
+            return res.status(500).send(error);
+        };
+    }
+    // return elections
+    console.log(elections);
+    return res.status(200).send({ elections });
+});
+
+app.put('/api/slide-recommendations/', async (req, res) => {
+
+    // for each election in elections
+    // console.log(req.body.elections);
+    const elections = req.body.elections;
+    for (election of elections) {
+        // eslint-disable-next-line consistent-return
+        try {
+            // string parse input for election_id
+            const election_id = election.candidates[0].name + election.district.name;
+
+            // try and get candidates' profiles from election
+            const document = db.collection('elections').doc(election_id);
+            let item = await document.get();
+            let candidate_profiles = [];
+
+            // if candidates' profiles from election not stored in firebase
+            if (!item.exists) {
+                try {
+                    for (candidate of election.candidates) {
+                        // if has a url
+                        // if (candidate.candidateUrl.exists) {
+                        let candidate_content = "Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, and his entire family have been blessed to live the American Dream — the idea that anyone, through hard work and determination, can achieve anything. And he is committed to ensuring every family has that same opportunity."
+                        const candidateProfileParams = {
+                            content: candidate_content,
+                            contentType: 'text/plain;charset=utf-8',
+                            consumptionPreferences: true,
+                            rawScores: true,
+                        };
+                        // get candidate profile from ibm
+                        personalityInsights.profile(candidateProfileParams)
+                            .then(profile => {
+                                console.log(profile);
+                                // add profile to candidate json
+                                candidate["profile"] = profile;
+                                // add profile to candidate profiles for store in firebase
+                                candidate_profiles.push(profile);
+                                const user_profile = req.body.user;
+                                // calculate needs_score and values_score with user_profile
+                                const needs_score = calculate_similarity(user_profile.needs, candidate.profile.result.needs, 12);
+                                const values_score = calculate_similarity(user_profile.values, candidate.profile.result.values, 5);
+                                candidate.profile["needs_score"] = needs_score;
+                                candidate.profile["values_score"] = values_score;
+                                // take average and add to candidate.profile under "average_score"
+                                candidate.profile["average_score"] = (needs_score + values_score) / 2;
+                            })
+                            .catch(err => {
+                                console.log('error:', err);
+                            });
+                        // }
+                        // // if candidate does not have a url
+                        // else {
+                        //     const profile = {
+                        //         needs_score: 0,
+                        //         values_score: 0,
+                        //         average_score: 0,
+                        //     };
+                        //     candidate["profile"] = profile;
+                        // }
+                    }
+                    // create elections entry in firebase
+                    console.log("candidate_profiles", candidate_profiles);
+                    await db.collection('elections').doc('/' + election_id + '/')
+                        .create({ election: candidate_profiles });
+                } catch (error) {
+                    console.log(error);
+                    return res.status(500).send(error);
+                }
+                // if candidates' profiles already stored in firebase
+            } else {
+                // response = {election: candidate_profiles}
+                let response = item.data();
+                let candidate_profiles = response.election;
+                for (candidate_profile of candidate_profiles) {
+                    // calculate needs_score and values_score with user_profile
+                    const needs_score = calculate_similarity(user_profile.needs, candidate.profile.result.needs, 12);
+                    const values_score = calculate_similarity(user_profile.values, candidate.profile.result.values, 5);
+                    candidate_profile["needs_score"] = needs_score;
+                    candidate_profile["values_score"] = values_score;
+                    // take average and add to candidate.profile under "average_score"
+                    candidate_profile["average_score"] = (needs_score + values_score) / 2;
+                    // add profile to candidate json
+                    candidate["profile"] = candidate_profile;
+                }
+            }
+        } catch (error) {
+            console.log(error);
+            return res.status(500).send(error);
+        };
+    }
+    // return elections
+    console.log(elections);
+    return res.status(200).send({ elections });
+});
 
 
 // START THE SERVER
