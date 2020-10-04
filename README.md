@@ -1,4 +1,4 @@
-# ivyhacks-api
+# SmartVote API for Ivyhacks Hackathon
 
 ## How we built it
 We built our api using two main endpoints, text-recommendations and slide-recommendations. These two endpoints return recommendations for which candidate most aligns with a user's needs and values based on a user's text input or self assessment. This is done using IBM's personality insights API. We hope to further implement this idea with the scraping of social media presences (ie. Twitter, Facebook) with the use of the Twitter and Facebook APIs (we were unable to recieve permission in time for the hackathon).
