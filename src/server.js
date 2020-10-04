@@ -216,6 +216,7 @@ app.put('/api/text-recommendations/', async (req, res) => {
                         //     candidate["profile"] = profile;
                         // }
                     }
+                    console.log(candidate_profiles);
                     // create elections entry in firebase
                     console.log("candidate_profiles", candidate_profiles);
                     await db.collection('elections').doc('/' + election_id + '/')
@@ -335,6 +336,7 @@ app.put('/api/slide-recommendations/', async (req, res) => {
                                 candidate.profile["values_score"] = values_score;
                                 // take average and add to candidate.profile under "average_score"
                                 candidate.profile["average_score"] = (needs_score + values_score) / 2;
+                                console.log(candidate.profile);
                             })
                             .catch(err => {
                                 console.log('error:', err);
@@ -373,6 +375,7 @@ app.put('/api/slide-recommendations/', async (req, res) => {
                     candidate_profile["average_score"] = (needs_score + values_score) / 2;
                     // add profile to candidate json
                     candidate["profile"] = candidate_profile;
+                    console.log(candidate);
                 }
             }
         } catch (error) {
@@ -381,6 +384,7 @@ app.put('/api/slide-recommendations/', async (req, res) => {
         };
     }
     // return elections
+    console.log({ elections });
     return res.status(200).send({ elections });
 });
 
