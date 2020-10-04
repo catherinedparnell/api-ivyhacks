@@ -11,33 +11,6 @@ dotenv.config({ silent: true });
 // initialize
 const app = express();
 
-const admin = require('firebase-admin');
-
-const serviceAccount = require('../permissions.json');
-
-const Apify = require('apify');
-
-Apify.client.setOptions({ token: 'HPHxehsbm8m2t4iEvWpu8sFeJ' });
-
-const axios = require('axios');
-
-let data = '';
-
-const config = {
-  method: 'get',
-  url: 'https://api.apify.com/v2/acts/pocesar~facebook-pages-scraper/runs/last/dataset/items?token=HPHxehsbm8m2t4iEvWpu8sFeJ\n',
-  headers: {
-    Cookie: 'AWSALB=CJFq9Ff621KPwyrNjrbVdikBoCaXzEvywP4PU+TEED2YEJEufiqiHIJAhSUBW2ms67c1AebTxKBUC07L49dZ7HKeF4wersmImyHNVpMN6MrtIYQc5iEteMxFCd1r; AWSALBCORS=CJFq9Ff621KPwyrNjrbVdikBoCaXzEvywP4PU+TEED2YEJEufiqiHIJAhSUBW2ms67c1AebTxKBUC07L49dZ7HKeF4wersmImyHNVpMN6MrtIYQc5iEteMxFCd1r',
-  },
-  data,
-};
-
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
-});
-
-const db = admin.firestore();
-
 // enable/disable cross origin resource sharing if necessary
 app.use(cors());
 
@@ -97,7 +70,6 @@ function calculate_similarity(user, candidate, num) {
 
 
 app.put('/api/text-recommendations/', async (req, res) => {
-
         // get user profile from ibm
         const userProfileParams = {
             // req.body.userText
@@ -114,8 +86,6 @@ app.put('/api/text-recommendations/', async (req, res) => {
         for (election of elections) {
             // eslint-disable-next-line consistent-return
                 try {
-                    // string parse input for election_id
-                    const election_id = election.candidates[0].name + election.district.name;
                     let candidate_profiles = [];
                     // try and get candidates' profiles from election
                             for (candidate of election.candidates) {
@@ -151,21 +121,12 @@ app.put('/api/text-recommendations/', async (req, res) => {
 
         app.put('/api/slide-recommendations/', async (req, res) => {
             const user_profile = req.body.user;
-            // for each election in elections
-            // console.log(req.body.elections);
             const elections = req.body.elections;
+
             for (election of elections) {
-                // eslint-disable-next-line consistent-return
-                    try {
-                        // string parse input for election_id
-                        const election_id = election.candidates[0].name + election.district.name;
-        
-                        // try and get candidates' profiles from election
-                        const document = db.collection('elections').doc(election_id);
-                        let item = await document.get();
+                // eslint-disable-next-line consistent-return                 
                         let candidate_profiles =[];
                         // if candidates' profiles from election not stored in firebase
-                        if (!item.exists){
                             try {
                                 for (candidate of election.candidates) {
                                     let candidate_content = "Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, Ted, his wife Heidi, their two daughters Caroline and Catherine, and his entire family have been blessed to live the American Dream — the idea that anyone, through hard work and determination, can achieve anything. And he is committed to ensuring every family has that same opportunity."
@@ -189,35 +150,10 @@ app.put('/api/text-recommendations/', async (req, res) => {
                                     // take average and add to candidate.profile under "average_score"
                                     candidate.profile["average_score"] = (needs_score + values_score) / 2;
                                 }
-                                // create elections entry in firebase
-                                console.log("candidate_profiles", candidate_profiles);
-                                await db.collection('elections').doc('/' + election_id + '/')
-                                    .create({election: candidate_profiles});
                             } catch (error) {
                                 console.log(error);
                                 return res.status(500).send(error);
                             } 
-                        // if candidates' profiles already stored in firebase
-                        } else {
-                            // response = {election: candidate_profiles}
-                            let response = item.data();
-                            let candidate_profiles = response.election;
-                            for (candidate_profile of candidate_profiles) {
-                                // calculate needs_score and values_score with user_profile
-                                const needs_score = calculate_similarity(user_profile.needs, candidate.profile.result.needs, 12);
-                                const values_score = calculate_similarity(user_profile.values, candidate.profile.result.values, 5);
-                                candidate_profile["needs_score"] = needs_score;
-                                candidate_profile["values_score"] = values_score;
-                                // take average and add to candidate.profile under "average_score"
-                                candidate_profile["average_score"] = (needs_score + values_score) / 2;
-                                // add profile to candidate json
-                                candidate["profile"] = candidate_profile;
-                            }
-                        }
-                    } catch (error) {
-                        console.log(error);
-                        return res.status(500).send(error);
-                    };
                 }
                 // return elections
                 return res.status(200).send({elections});
