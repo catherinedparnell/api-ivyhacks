@@ -152,6 +152,7 @@ app.put('/api/text-recommendations/', async (req, res) => {
                                 }
                             } catch (error) {
                                 console.log(error);
+                                console.log('election error: ', election);
                                 return res.status(500).send(error);
                             } 
                 }
