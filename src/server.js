@@ -236,6 +236,7 @@ app.put('/api/text-recommendations/', async (req, res) => {
                         const document = db.collection('elections').doc(election_id);
                         let item = await document.get();
                         let candidate_profiles =[];
+                        console.log(item);
                         // if candidates' profiles from election not stored in firebase
                         if (!item.exists){
                             try {
@@ -288,6 +289,8 @@ app.put('/api/text-recommendations/', async (req, res) => {
                                         consumptionPreferences: true,
                                         rawScores: true,
                                     };
+
+                                    console.log('still going');
     
                                     profile = await personalityInsights.profile(candidateProfileParams);
                                     // add profile to candidate json
@@ -328,9 +331,12 @@ app.put('/api/text-recommendations/', async (req, res) => {
                                 candidate["profile"] = candidate_profile;
                             }
                         }
+
+                        setTimeout(2000);
                     } catch (error) {
                         console.log(error);
                         return res.status(500).send(error);
+                        console.log(election);
                     };
                 }
                 // return elections
